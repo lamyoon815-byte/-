@@ -84,12 +84,12 @@ POST /analyze          미등록 작품 이미지 → 해설 JSON (P1)
 
 | 확인 항목 | 상태 |
 |---|---|
-| 사용할 라이브러리(카메라, 줌, Skia, 이미지 업로드 등)가 **Expo Go에서 그대로 동작하는지**. 커스텀 네이티브 모듈이 필요하면 dev build로 전환해야 합니다. | 미검증 |
-| **React Native Skia로 실시간 보정**(색 행렬, 대비·밝기, 샤프닝)과 원본/보정 전환, 강도 슬라이더가 가능한지, 성능은 어떤지 | 미검증 |
-| **핀치 줌** 구현 방법(예: gesture-handler + reanimated, 또는 줌 전용 라이브러리)과 고해상도 이미지에서의 성능 | 미검증 |
-| 업로드 전에 **기기에서 리사이즈**하는 방법 (예: 긴 변 1024px) | 미검증 |
-| expo-speech로 **한국어 음성이 iOS와 Android 모두에서 나오는지**, 재생 속도 조절과 반복이 되는지 | 미검증 |
-| 큰 글씨, 고대비, 시스템 글꼴 크기 설정 반영 등 저시력 UI 구현 방법 | 미검증 |
+| 사용할 라이브러리(카메라, 줌, Skia, 이미지 업로드 등)가 **Expo Go에서 그대로 동작하는지**. 커스텀 네이티브 모듈이 필요하면 dev build로 전환해야 합니다. | **iOS 검증 완료** (Expo SDK 58): Skia, gesture-handler v3, reanimated, slider, expo-speech, expo-image-manipulator 모두 Expo Go에서 동작. dev build 불필요.<br>카메라(expo-camera): 미리보기, 촬영, 1024px 리사이즈까지 iOS 동작 확인 (Expo Go는 이미 카메라 권한이 있어 권한 팝업 흐름은 별도 빌드에서 재확인 필요).<br>업로드는 BE 엔드포인트 연결 후 측정, Android 미검증 |
+| **React Native Skia로 실시간 보정**(색 행렬, 대비·밝기, 샤프닝)과 원본/보정 전환, 강도 슬라이더가 가능한지, 성능은 어떤지 | **iOS 검증 완료** (대비·밝기·강도·원본 전환): 슬라이더 조작 중 끊김 없음, UI 120fps.<br>**샤프닝 iOS 검증 완료**: Skia RuntimeShader(3×3 언샤프 마스크)로 구현, 강도 0~2에서 깨짐 없이 동작 (`Frontend/src/lib/sharpen.ts`) |
+| **핀치 줌** 구현 방법(예: gesture-handler + reanimated, 또는 줌 전용 라이브러리)과 고해상도 이미지에서의 성능 | **iOS 검증 완료**: gesture-handler v3 + reanimated, 확대는 Skia 내부 transform으로 처리. 3840×3041 원본에서 두 손가락 이동과 더블탭 동작, 확대해도 선명, UI 약 120fps, 로드+디코드 162ms(개발 모드). 핀치 확대·축소 동작.<br>스크린리더 사용자를 위해 확대/축소 버튼도 제공 |
+| 업로드 전에 **기기에서 리사이즈**하는 방법 (예: 긴 변 1024px) | **iOS 리사이즈 동작 확인**: expo-image-manipulator `ImageManipulator.manipulate`(`manipulateAsync`는 deprecated). 결과 수치 기록 예정.<br>업로드 속도는 BE 엔드포인트 연결 후 측정 |
+| expo-speech로 **한국어 음성이 iOS와 Android 모두에서 나오는지**, 재생 속도 조절과 반복이 되는지 | **iOS 검증 완료**: 한국어 음성 9개 설치됨(Yuna, Eddy, Flo 등), 한국어 재생, 0.75x~1.5x 속도 차이 체감, 반복·정지 동작, VoiceOver를 켜도 소리 겹침 없음.<br>본 구현에서는 기기마다 목소리가 달라지지 않도록 voice를 고정(Yuna 우선, 고음질 버전이 있으면 그것)할 예정.<br>Android 미검증 |
+| 큰 글씨, 고대비, 시스템 글꼴 크기 설정 반영 등 저시력 UI 구현 방법 | **iOS 검증 완료**: 시스템 글꼴 배율 자동 반영(`allowFontScaling` 기본값), 최대 크기에서도 잘림 없음. 고대비 팔레트(검정/흰색/노랑) 토글 동작. 최소 터치 영역 56pt. 토큰은 `Frontend/src/constants/a11y.ts` |
 
 ### 4.2 AI 담당자 확인 요청
 

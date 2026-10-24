@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# 환경 변수 (API 키 등)
+.env
+.env.*
+
+# Python (Backend)
+__pycache__/
+*.pyc
+.venv/
+venv/
