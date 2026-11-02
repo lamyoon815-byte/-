@@ -14,10 +14,16 @@ if __package__:
     from .catalog import ArtworkDetail, ArtworkList, CatalogStore
     from .images import normalize_image, upload_image
     from .accounts import AccountStore, create_account_router
+    from .recognition import RecognitionService
+    from .gemini import GeminiService
+    from .ai_routes import create_ai_router
 else:
     from catalog import ArtworkDetail, ArtworkList, CatalogStore
     from images import normalize_image, upload_image
     from accounts import AccountStore, create_account_router
+    from recognition import RecognitionService
+    from gemini import GeminiService
+    from ai_routes import create_ai_router
 
 load_dotenv(Path(__file__).with_name(".env"))
 
@@ -26,9 +32,11 @@ def health_check():
     return {"status": "ok"}
 
 
-def create_app(data_dir: Path | None = None) -> FastAPI:
+def create_app(data_dir: Path | None = None, *, recognition=None, gemini=None) -> FastAPI:
     store = CatalogStore(data_dir)
     accounts = AccountStore(store.data_dir)
+    recognition = recognition if recognition is not None else RecognitionService(store)
+    gemini = gemini if gemini is not None else GeminiService()
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
@@ -50,11 +58,14 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             {"name": "회원 인증", "description": "이메일 회원가입·로그인·로그아웃. 발급된 access_token을 Authorize에 입력하세요. 세션 유효기간은 7일입니다."},
             {"name": "시각 프로필", "description": "계정별 보정 설정을 저장합니다. 앱이 이 설정을 받아 실시간 보정합니다."},
             {"name": "관람 기록", "description": "회원 본인의 작품 감상 기록과 당시 보정 설정을 관리합니다."},
+            {"name": "작품 인식", "description": "CLIP 작품 검색 또는 Gemini 명패 읽기와 카탈로그 매칭을 수행합니다."},
+            {"name": "작품 해설", "description": "검수된 등록 작품 해설과 미등록 작품 실시간 분석을 제공합니다."},
         ],
         lifespan=lifespan,
     )
     application.state.accounts = accounts
     application.state.catalog = store
+    application.state.recognition = recognition
     origins = [item.strip() for item in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",") if item.strip()]
     if origins:
         application.add_middleware(CORSMiddleware, allow_origins=origins,
@@ -69,6 +80,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
 
     account_router, current_user = create_account_router(accounts, store)
     application.include_router(account_router)
+    application.include_router(create_ai_router(store, accounts, current_user, recognition, gemini))
     application.add_api_route(
         "/health", health_check, methods=["GET"], tags=["서버 상태"],
         summary="서버 상태 확인",
