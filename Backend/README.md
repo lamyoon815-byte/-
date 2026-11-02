@@ -14,3 +14,9 @@ uv pip install --python .venv/bin/python -r requirements.txt
 - `/docs`: 한국어 API 문서
 
 업로드는 JPEG·PNG·WebP·HEIC/HEIF, 최대 10MiB·2,500만 화소를 지원한다.
+
+## 작품 카탈로그
+
+`python import_catalog.py catalog.demo.json`으로 포함된 모나리자 데모를 등록한다.
+`GET /artworks`는 목록, `GET /artworks/{id}`는 작품 정보와 원본 이미지 URL을 반환한다.
+DB와 이미지 복사본은 `data/`에 저장하며 미검수 해설은 노출하지 않는다.
