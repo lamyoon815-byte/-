@@ -7,15 +7,19 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi import Path as PathParameter
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 from starlette.concurrency import run_in_threadpool
 
 if __package__:
     from .catalog import ArtworkDetail, ArtworkList, CatalogStore
     from .images import normalize_image, upload_image
+    from .accounts import AccountStore, create_account_router
 else:
     from catalog import ArtworkDetail, ArtworkList, CatalogStore
     from images import normalize_image, upload_image
+    from accounts import AccountStore, create_account_router
 
+load_dotenv(Path(__file__).with_name(".env"))
 
 
 def health_check():
@@ -24,10 +28,12 @@ def health_check():
 
 def create_app(data_dir: Path | None = None) -> FastAPI:
     store = CatalogStore(data_dir)
+    accounts = AccountStore(store.data_dir)
 
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         await run_in_threadpool(store.initialize)
+        await run_in_threadpool(accounts.initialize)
         yield
 
     application = FastAPI(
@@ -41,9 +47,13 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             {"name": "서버 상태", "description": "서버가 정상적으로 응답하는지 확인합니다."},
             {"name": "사진 업로드", "description": "사용자 촬영 사진의 검증과 전처리를 확인합니다."},
             {"name": "작품 조회", "description": "SQLite에 등록된 작품 정보·해설·원본 이미지 URL을 조회합니다."},
+            {"name": "회원 인증", "description": "이메일 회원가입·로그인·로그아웃. 발급된 access_token을 Authorize에 입력하세요. 세션 유효기간은 7일입니다."},
+            {"name": "시각 프로필", "description": "계정별 보정 설정을 저장합니다. 앱이 이 설정을 받아 실시간 보정합니다."},
+            {"name": "관람 기록", "description": "회원 본인의 작품 감상 기록과 당시 보정 설정을 관리합니다."},
         ],
         lifespan=lifespan,
     )
+    application.state.accounts = accounts
     application.state.catalog = store
     origins = [item.strip() for item in os.environ.get("CORS_ORIGINS", "http://localhost:8081,http://127.0.0.1:8081").split(",") if item.strip()]
     if origins:
@@ -57,6 +67,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    account_router, current_user = create_account_router(accounts, store)
+    application.include_router(account_router)
     application.add_api_route(
         "/health", health_check, methods=["GET"], tags=["서버 상태"],
         summary="서버 상태 확인",
